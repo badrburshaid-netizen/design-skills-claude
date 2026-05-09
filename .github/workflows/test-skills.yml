@@ -1,0 +1,97 @@
+name: Test Design Skills & Verify Setup
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-design-skills:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install MCP dependency
+      run: |
+        pip install mcp
+        echo "[OK] MCP installed successfully"
+
+    - name: Run design_skills.py
+      run: |
+        python design_skills.py
+        echo "[OK] design_skills.py executed successfully"
+
+    - name: Verify exported files exist
+      run: |
+        ls -la design_skills.json design_skills.txt SKILLS.md
+        echo "[OK] All export files generated"
+
+    - name: Show skill count
+      run: |
+        python -c "
+        from design_skills import GRAPHIC_DESIGN_SKILLS, PHOTO_SKILLS, PRESENTATION_SKILLS
+        gd = sum(len(v) for v in GRAPHIC_DESIGN_SKILLS.values())
+        ph = sum(len(v) for v in PHOTO_SKILLS.values())
+        pr = sum(len(v) for v in PRESENTATION_SKILLS.values())
+        total = gd + ph + pr
+        print(f'Graphic Design Skills: {gd}')
+        print(f'Photo Skills: {ph}')
+        print(f'Presentation Skills: {pr}')
+        print(f'TOTAL SKILLS: {total}')
+        "
+
+    - name: Verify MCP server syntax
+      run: |
+        python -c "
+        import ast, sys
+        with open('mcp_server.py') as f:
+            source = f.read()
+        try:
+            ast.parse(source)
+            print('[OK] mcp_server.py syntax is valid')
+        except SyntaxError as e:
+            print(f'[ERROR] Syntax error: {e}')
+            sys.exit(1)
+        "
+
+    - name: Show Claude Desktop config instructions
+      run: |
+        echo ""
+        echo "=================================================="
+        echo "  CLAUDE DESKTOP MCP CONFIG"
+        echo "=================================================="
+        echo ""
+        echo "  Add this to your claude_desktop_config.json:"
+        echo ""
+        echo "  Mac path: ~/Library/Application Support/Claude/claude_desktop_config.json"
+        echo "  Windows path: %APPDATA%/Claude/claude_desktop_config.json"
+        echo ""
+        python -c "
+        import json, os
+        config = {
+            'mcpServers': {
+                'design-skills': {
+                    'command': 'python3',
+                    'args': [os.path.expanduser('~/design-skills-claude/mcp_server.py')]
+                }
+            }
+        }
+        print(json.dumps(config, indent=2))
+        "
+        echo ""
+        echo "  Available Claude Tools After Setup:"
+        echo "    - get_graphic_design_skills"
+        echo "    - get_photo_skills"
+        echo "    - get_presentation_skills"
+        echo "    - get_all_design_skills"
+        echo "    - search_design_skills"
+        echo ""
+        echo "  Then restart Claude Desktop!"
+        echo "=================================================="
