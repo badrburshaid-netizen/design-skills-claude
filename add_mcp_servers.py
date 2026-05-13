@@ -14,144 +14,102 @@ CONFIG_PATH = os.path.expanduser(
     "~/Library/Application Support/Claude/claude_desktop_config.json"
 )
 
+def find_executable(name):
+    """Find the absolute path of an executable."""
+    # Common locations on macOS with Homebrew
+    candidates = [
+        "/opt/homebrew/bin/" + name,
+        "/usr/local/bin/" + name,
+        os.path.expanduser("~/.local/bin/" + name),
+        "/usr/bin/" + name,
+    ]
+    for path in candidates:
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    # Try 'which' as fallback
+    try:
+        result = subprocess.run(["which", name], capture_output=True, text=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+# Find absolute paths
+uvx_path = find_executable("uvx")
+npx_path = find_executable("npx")
+
+print("Detected executables:")
+print("  uvx:", uvx_path or "NOT FOUND")
+print("  npx:", npx_path or "NOT FOUND")
+
+if not uvx_path:
+    print("")
+    print("ERROR: uvx not found. Install it with:")
+    print("  pip3 install uv")
+    print("Then re-run this script.")
+    sys.exit(1)
+
+if not npx_path:
+    print("")
+    print("ERROR: npx not found. Install Node.js with:")
+    print("  brew install node")
+    print("Then re-run this script.")
+    sys.exit(1)
+
 # New MCP servers to add
 NEW_SERVERS = {
     "fetch": {
-        "command": "uvx",
+        "command": uvx_path,
         "args": ["mcp-server-fetch"]
     },
     "filesystem": {
-        "command": "npx",
-        "args": [
-            "-y",
-            "@modelcontextprotocol/server-filesystem",
-            os.path.expanduser("~/Documents"),
-            os.path.expanduser("~/Desktop"),
-            os.path.expanduser("~/design-skills-claude")
-        ]
+        "command": npx_path,
+        "args": ["-y", "@modelcontextprotocol/server-filesystem",
+                 os.path.expanduser("~")]
     },
     "memory": {
-        "command": "npx",
+        "command": npx_path,
         "args": ["-y", "@modelcontextprotocol/server-memory"]
     },
     "sequential-thinking": {
-        "command": "npx",
+        "command": npx_path,
         "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
     }
 }
 
-def check_tool(name):
-    try:
-        result = subprocess.run(
-            ["which", name],
-            capture_output=True, text=True
-        )
-        return result.returncode == 0
-    except Exception:
-        return False
+# Load or create config
+if os.path.exists(CONFIG_PATH):
+    with open(CONFIG_PATH, "r") as f:
+        config = json.load(f)
+else:
+    config = {}
 
-def main():
-    print()
-    print("=" * 50)
-    print(" ADD MCP SERVERS TO CLAUDE DESKTOP")
-    print("=" * 50)
-    print()
+if "mcpServers" not in config:
+    config["mcpServers"] = {}
 
-    # Check prerequisites
-    print("[1/3] Checking prerequisites...")
-    has_npx = check_tool("npx")
-    has_uvx = check_tool("uvx")
-    has_node = check_tool("node")
-
-    print(f"  node: {'OK' if has_node else 'MISSING - install from nodejs.org'}")
-    print(f"  npx:  {'OK' if has_npx else 'MISSING - comes with Node.js'}")
-    print(f"  uvx:  {'OK' if has_uvx else 'MISSING - install with: pip3 install uv'}")
-
-    if not has_node or not has_npx:
-        print()
-        print("  Node.js is required for most servers.")
-        print("  Install it from: https://nodejs.org")
-        print("  Then re-run this script.")
-        print()
-        choice = input("  Continue anyway? (y/n): ").strip().lower()
-        if choice != "y":
-            sys.exit(0)
-
-    # Install uvx if missing
-    if not has_uvx:
-        print()
-        print("  Installing uv/uvx for the fetch server...")
-        os.system("pip3 install uv --quiet")
-        print("  uvx installed.")
-
-    # Load existing config
-    print()
-    print("[2/3] Updating Claude Desktop config...")
-
-    if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, "r") as f:
-            config = json.load(f)
-        print(f"  Existing config found.")
+# Add new servers
+added = []
+skipped = []
+for name, server_config in NEW_SERVERS.items():
+    if name not in config["mcpServers"]:
+        config["mcpServers"][name] = server_config
+        added.append(name)
     else:
-        config = {}
-        print("  No existing config. Creating new one.")
+        # Update existing entry to use absolute paths
+        config["mcpServers"][name] = server_config
+        skipped.append(name + " (updated with absolute path)")
 
-    if "mcpServers" not in config:
-        config["mcpServers"] = {}
+# Save config
+with open(CONFIG_PATH, "w") as f:
+    json.dump(config, f, indent=2)
 
-    # Show what will be added
-    existing = list(config["mcpServers"].keys())
-    to_add = []
-    to_skip = []
-
-    for name in NEW_SERVERS:
-        if name in config["mcpServers"]:
-            to_skip.append(name)
-        else:
-            to_add.append(name)
-
-    if existing:
-        print(f"  Already configured: {', '.join(existing)}")
-    if to_skip:
-        print(f"  Skipping (already exist): {', '.join(to_skip)}")
-    if to_add:
-        print(f"  Adding: {', '.join(to_add)}")
-
-    # Add new servers
-    for name in to_add:
-        config["mcpServers"][name] = NEW_SERVERS[name]
-
-    # Save config
-    with open(CONFIG_PATH, "w") as f:
-        json.dump(config, f, indent=2)
-
-    print()
-    print("[3/3] Config saved!")
-    print(f"  Path: {CONFIG_PATH}")
-
-    # Show final config
-    print()
-    print("  Active MCP servers:")
-    for name in config["mcpServers"]:
-        print(f"    - {name}")
-
-    print()
-    print("=" * 50)
-    print(" DONE!")
-    print("=" * 50)
-    print()
-    print("  ACTION REQUIRED:")
-    print("  Quit Claude Desktop (Cmd+Q) and reopen it.")
-    print()
-    print("  New tools you will have:")
-    print("  - fetch:               Read any webpage or article")
-    print("  - filesystem:          Read/write your Mac files")
-    print("  - memory:              Remember facts across chats")
-    print("  - sequential-thinking: Deep step-by-step reasoning")
-    print()
-    print("  All tools ready for your DBA thesis work!")
-    print("=" * 50)
-    print()
-
-if __name__ == "__main__":
-    main()
+print("")
+print("Config updated at:", CONFIG_PATH)
+if added:
+    print("  Added:", ", ".join(added))
+if skipped:
+    print("  Updated:", ", ".join(skipped))
+print("")
+print("Now QUIT Claude Desktop (Cmd+Q) and reopen it.")
+print("Then click the hammer icon to see all tools.")
