@@ -31,6 +31,11 @@ from dba_skills import (
     BORDEAUX_DBA_RESOURCES,
     count_total_dba_skills,
 )
+from gpmf_speakers_skills import (
+    SPEAKERS_MANAGEMENT_SKILLS,
+    count_total_speakers_skills,
+    search_speakers_skills as _search_speakers,
+)
 
 TOOLS = [
     {
@@ -259,6 +264,27 @@ def execute_tool(name, arguments):
                         results.append({"domain": domain_name, "category": category, "skill": skill})
         return json.dumps({"keyword": keyword, "matches": len(results), "results": results}, indent=2)
 
+    elif name == "get_gpmf_speakers_skills":
+        category = arguments.get("category", "").strip()
+        data = {category: SPEAKERS_MANAGEMENT_SKILLS[category]} if category and category in SPEAKERS_MANAGEMENT_SKILLS else SPEAKERS_MANAGEMENT_SKILLS
+        return json.dumps({"domain": "GPMF Speakers Management", "skills": data, "total": sum(len(v) for v in data.values())}, indent=2)
+
+    elif name == "search_gpmf_speakers_skills":
+        keyword = arguments.get("keyword", "").strip()
+        if not keyword:
+            return json.dumps({"error": "Please provide a keyword to search."})
+        results = _search_speakers(keyword)
+        return json.dumps({"keyword": keyword, "matches": len(results), "results": results}, indent=2)
+
+    elif name == "get_all_gpmf_speakers_skills":
+        return json.dumps({
+            "source": "GPMF Speakers Management Skills",
+            "event": "Gulf Project Management Forum (GPMF)",
+            "total_skills": count_total_speakers_skills(),
+            "categories": list(SPEAKERS_MANAGEMENT_SKILLS.keys()),
+            "skills": SPEAKERS_MANAGEMENT_SKILLS,
+        }, indent=2)
+
     else:
         return json.dumps({"error": f"Unknown tool: {name}"})
 
@@ -329,4 +355,30 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(),
+    {
+        "name": "get_gpmf_speakers_skills",
+        "description": "Returns skills for speakers management at GPMF (Gulf Project Management Forum). Covers sourcing, coordination, content, logistics, onsite support, engagement, post-event, and domain knowledge.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "description": "Optional: Speaker_Sourcing_and_Selection, Speaker_Communication_and_Coordination, Content_and_Session_Management, Logistics_and_Scheduling, Onsite_Speaker_Support, Audience_and_Engagement, Post_Event_Follow_Up, GPMF_Domain_Knowledge."}
+            }
+        }
+    },
+    {
+        "name": "search_gpmf_speakers_skills",
+        "description": "Search across all GPMF speakers management skills for a specific keyword.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "keyword": {"type": "string", "description": "Keyword to search for in GPMF speakers skills."}
+            },
+            "required": ["keyword"]
+        }
+    },
+    {
+        "name": "get_all_gpmf_speakers_skills",
+        "description": "Returns ALL GPMF speakers management skills across all categories.",
+        "inputSchema": {"type": "object", "properties": {}}
+    }
