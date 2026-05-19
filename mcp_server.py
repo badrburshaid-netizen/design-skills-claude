@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from design_skills import (
     GRAPHIC_DESIGN_SKILLS,
+    MOTION_DESIGN_SKILLS,
     PHOTO_SKILLS,
     PRESENTATION_SKILLS,
     count_total_skills,
@@ -40,11 +41,21 @@ from gpmf_speakers_skills import (
 TOOLS = [
     {
         "name": "get_graphic_design_skills",
-        "description": "Returns the top skills needed for professional graphic design.",
+        "description": "Returns the top skills needed for professional graphic design, including most-wanted 2024-2025 skills such as AI-powered design, design systems, accessibility, and digital design.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "category": {"type": "string", "description": "Optional category filter."}
+                "category": {"type": "string", "description": "Optional category filter: Foundations, Technical_Software, Branding_Identity, Print_Production, Digital_Design, AI_Powered_Design_Skills, Soft_Creative_Skills"}
+            }
+        }
+    },
+    {
+        "name": "get_motion_design_skills",
+        "description": "Returns top skills for Motion Design and motion graphics, including most in-demand skills for 2024-2025: After Effects, Cinema 4D, Blender, GSAP, Lottie, Rive, AI video tools (Runway ML), UI/UX motion, and web animation.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "description": "Optional category filter: Motion_Design_Foundations, Core_Motion_Software, After_Effects_Specific_Skills, UI_UX_Motion_Design, 3D_Motion_Design, Social_Content_Motion, Visual_Effects_VFX, Web_Interactive_Motion, Motion_AI_Tools, Motion_Design_Workflow, Most_Wanted_Motion_Skills_Summary"}
             }
         }
     },
@@ -54,7 +65,7 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "category": {"type": "string", "description": "Optional category filter."}
+                "category": {"type": "string", "description": "Optional category filter: Photography_Fundamentals, Photo_Editing, Selecting_Photos_for_Design, Stock_Photo_Platforms, Advanced_Photo_Skills"}
             }
         }
     },
@@ -64,18 +75,18 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "category": {"type": "string", "description": "Optional category filter."}
+                "category": {"type": "string", "description": "Optional category filter: Design_Principles_for_Slides, Software_Tools, Content_Structure, Visual_Enhancement, Delivery_Communication, Professional_Standards"}
             }
         }
     },
     {
         "name": "get_all_design_skills",
-        "description": "Returns ALL design skills across graphic design, photography, and presentations.",
+        "description": "Returns ALL design skills across graphic design, motion design, photography, and presentations.",
         "inputSchema": {"type": "object", "properties": {}}
     },
     {
         "name": "search_design_skills",
-        "description": "Search across all design skills for a specific keyword.",
+        "description": "Search across all design skills (including motion design) for a specific keyword.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -160,14 +171,44 @@ TOOLS = [
             "required": ["keyword"]
         }
     },
+    {
+        "name": "get_gpmf_speakers_skills",
+        "description": "Returns skills for speakers management at GPMF (Gulf Project Management Forum). Covers sourcing, coordination, content, logistics, onsite support, engagement, post-event, and domain knowledge.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "description": "Optional: Speaker_Sourcing_and_Selection, Speaker_Communication_and_Coordination, Content_and_Session_Management, Logistics_and_Scheduling, Onsite_Speaker_Support, Audience_and_Engagement, Post_Event_Follow_Up, GPMF_Domain_Knowledge."}
+            }
+        }
+    },
+    {
+        "name": "search_gpmf_speakers_skills",
+        "description": "Search across all GPMF speakers management skills for a specific keyword.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "keyword": {"type": "string", "description": "Keyword to search for in GPMF speakers skills."}
+            },
+            "required": ["keyword"]
+        }
+    },
+    {
+        "name": "get_all_gpmf_speakers_skills",
+        "description": "Returns ALL GPMF speakers management skills across all categories.",
+        "inputSchema": {"type": "object", "properties": {}}
+    },
 ]
-
 
 def execute_tool(name, arguments):
     if name == "get_graphic_design_skills":
         category = arguments.get("category", "").strip()
         data = {category: GRAPHIC_DESIGN_SKILLS[category]} if category and category in GRAPHIC_DESIGN_SKILLS else GRAPHIC_DESIGN_SKILLS
         return json.dumps({"domain": "Graphic Design", "skills": data, "total": sum(len(v) for v in data.values())}, indent=2)
+
+    elif name == "get_motion_design_skills":
+        category = arguments.get("category", "").strip()
+        data = {category: MOTION_DESIGN_SKILLS[category]} if category and category in MOTION_DESIGN_SKILLS else MOTION_DESIGN_SKILLS
+        return json.dumps({"domain": "Motion Design", "skills": data, "total": sum(len(v) for v in data.values())}, indent=2)
 
     elif name == "get_photo_skills":
         category = arguments.get("category", "").strip()
@@ -185,6 +226,7 @@ def execute_tool(name, arguments):
             "total_skills": count_total_skills(),
             "domains": {
                 "graphic_design": GRAPHIC_DESIGN_SKILLS,
+                "motion_design": MOTION_DESIGN_SKILLS,
                 "photography_and_photo_selection": PHOTO_SKILLS,
                 "professional_presentations": PRESENTATION_SKILLS,
             }
@@ -193,7 +235,12 @@ def execute_tool(name, arguments):
     elif name == "search_design_skills":
         keyword = arguments.get("keyword", "").lower()
         results = []
-        for domain_name, domain_data in [("Graphic Design", GRAPHIC_DESIGN_SKILLS), ("Photography", PHOTO_SKILLS), ("Presentations", PRESENTATION_SKILLS)]:
+        for domain_name, domain_data in [
+            ("Graphic Design", GRAPHIC_DESIGN_SKILLS),
+            ("Motion Design", MOTION_DESIGN_SKILLS),
+            ("Photography", PHOTO_SKILLS),
+            ("Presentations", PRESENTATION_SKILLS)
+        ]:
             for category, skills in domain_data.items():
                 for skill in skills:
                     if keyword in skill.lower():
@@ -288,7 +335,6 @@ def execute_tool(name, arguments):
     else:
         return json.dumps({"error": f"Unknown tool: {name}"})
 
-
 def handle_request(req):
     method = req.get("method", "")
     req_id = req.get("id")
@@ -299,7 +345,7 @@ def handle_request(req):
             "result": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "design-dba-skills-claude", "version": "2.0.0"}
+                "serverInfo": {"name": "design-dba-skills-claude", "version": "3.0.0"}
             }
         }
 
@@ -331,7 +377,6 @@ def handle_request(req):
             "error": {"code": -32601, "message": f"Method not found: {method}"}
         }
 
-
 def main():
     while True:
         try:
@@ -353,32 +398,5 @@ def main():
             error_resp = {"jsonrpc": "2.0", "id": None, "error": {"code": -32603, "message": str(e)}}
             print(json.dumps(error_resp), flush=True)
 
-
 if __name__ == "__main__":
-    main(),
-    {
-        "name": "get_gpmf_speakers_skills",
-        "description": "Returns skills for speakers management at GPMF (Gulf Project Management Forum). Covers sourcing, coordination, content, logistics, onsite support, engagement, post-event, and domain knowledge.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "category": {"type": "string", "description": "Optional: Speaker_Sourcing_and_Selection, Speaker_Communication_and_Coordination, Content_and_Session_Management, Logistics_and_Scheduling, Onsite_Speaker_Support, Audience_and_Engagement, Post_Event_Follow_Up, GPMF_Domain_Knowledge."}
-            }
-        }
-    },
-    {
-        "name": "search_gpmf_speakers_skills",
-        "description": "Search across all GPMF speakers management skills for a specific keyword.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "keyword": {"type": "string", "description": "Keyword to search for in GPMF speakers skills."}
-            },
-            "required": ["keyword"]
-        }
-    },
-    {
-        "name": "get_all_gpmf_speakers_skills",
-        "description": "Returns ALL GPMF speakers management skills across all categories.",
-        "inputSchema": {"type": "object", "properties": {}}
-    }
+    main()
